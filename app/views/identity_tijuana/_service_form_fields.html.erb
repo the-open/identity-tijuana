@@ -1,0 +1,12 @@
+<div class="form-group">
+  <%= label_tag "services[tijuana]" do %>
+    <p>Push this list to Tijuana Tag</p>
+    <%= check_box_tag "services[tijuana]", "on", false, {:id => "services_tijuana", :class => "js-toggle-select"} %>
+    Yes
+  <% end %>
+  <div class="js-toggle-input" style="display: none;">
+    <%= label_tag "tijuana[tag]", 'Tag Name: ' %>
+    <%= text_field_tag "tijuana[tag]", nil, {:placeholder => 'Tag Name'} %>
+  </div>
+  <hr />
+</div>
