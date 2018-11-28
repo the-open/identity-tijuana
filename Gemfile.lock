@@ -5,7 +5,7 @@ PATH
       active_model_serializers (~> 0.10.7)
       httpclient
       pg (~> 0.18)
-      rails (~> 5.1.4)
+      rails (~> 5.1.6)
 
 GEM
   remote: https://rubygems.org/
@@ -216,7 +216,7 @@ DEPENDENCIES
   pry
   pry-byebug
   pry-rails
-  rails (~> 5.1.4)
+  rails (~> 5.1.6)
   rspec-mocks
   rspec-rails
   rubocop

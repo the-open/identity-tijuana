@@ -36,14 +36,14 @@ class Member < ApplicationRecord
 
   def landline
     phone_numbers
-      .landlines
+      .landline
       .sort_by(&:updated_at)
       .last.try(:phone)
   end
 
   def mobile
     phone_numbers
-      .mobiles
+      .mobile
       .sort_by(&:updated_at)
       .last.try(:phone)
   end
