@@ -8,6 +8,7 @@ module IdentityTijuana
 
     def import
       member_hash = {
+        ignore_phone_number_match: true,
         firstname: first_name,
         lastname: last_name,
         emails: [{ email: email }],
