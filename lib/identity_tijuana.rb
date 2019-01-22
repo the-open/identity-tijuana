@@ -39,6 +39,8 @@ module IdentityTijuana
   end
 
   def self.fetch_updated_users
+    puts ">>> Tijuana fetch_updated_users running ..."
+
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     users = User.where('updated_at >= ?', last_updated_at).includes(:postcode).order(:updated_at).limit(Settings.tijuana.sync_batch_size)
     users.each(&:import)
@@ -66,6 +68,8 @@ module IdentityTijuana
   end
 
   def self.fetch_latest_taggings
+    puts ">>> Tijuana fetch_latest_taggings running ..."
+
     last_id = (Sidekiq.redis { |r| r.get 'tijuana:taggings:last_id' } || 0).to_i
     users_last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     connection = ActiveRecord::Base.connection == List.connection ? ActiveRecord::Base.connection : List.connection
