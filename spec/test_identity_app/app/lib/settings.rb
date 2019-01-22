@@ -17,7 +17,8 @@ class Settings
         "secret" => ENV['TIJUANA_API_SECRET']
       },
       "sync_batch_size" => 1000,
-      "opt_out_subscription_id" => 4
+      "opt_out_email_subscription_id" => 4,
+      "opt_out_calling_subscription_id" => 4
     }
   end
 

@@ -15,11 +15,19 @@ module IdentityTijuana
         phones: [],
         addresses: [{ line1: street_address, town: suburb, country: country_iso, state: postcode.try(:state), postcode: postcode.try(:number) }],
         external_ids: { tijuana: id },
-        subscriptions: [{ id: Subscription::EMAIL_SUBSCRIPTION, action: is_member ? 'subscribe' : 'unsubscribe' }]
+        subscriptions: []
       }
-      if Settings.tijuana.opt_out_subscription_id
+
+      if Settings.tijuana.opt_out_email_subscription_id
         member_hash[:subscriptions].push({
-          id: Settings.tijuana.opt_out_subscription_id,
+          id: Settings.tijuana.opt_out_email_subscription_id,
+          action: !is_member ? 'unsubscribe' : 'subscribe'
+        })
+      end
+
+      if Settings.tijuana.opt_out_calling_subscription_id
+        member_hash[:subscriptions].push({
+          id: Settings.tijuana.opt_out_calling_subscription_id,
           action: do_not_call ? 'unsubscribe' : 'subscribe'
         })
       end
