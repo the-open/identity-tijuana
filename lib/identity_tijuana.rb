@@ -38,8 +38,24 @@ module IdentityTijuana
     "#{SYSTEM_NAME.titleize} - #{SYNCING.titleize}: ##{JSON.parse(external_system_params)['tag']} (#{CONTACT_TYPE})"
   end
 
+  def self.worker_currenly_running?(method_name)
+    workers = Sidekiq::Workers.new
+    workers.each do |_process_id, _thread_id, work|
+      matched_process = work["payload"]["args"] = [SYSTEM_NAME, method_name]
+      if matched_process
+        puts ">>> #{SYSTEM_NAME.titleize} #{method_name} skipping as worker already running ..."
+        return true
+      end
+    end
+    puts ">>> #{SYSTEM_NAME.titleize} #{method_name} running ..."
+    return false
+  end
+
   def self.fetch_updated_users
-    puts ">>> Tijuana fetch_updated_users running ..."
+    ## Do not run method if another worker is currently processing this method
+    if self.worker_currenly_running?(__method__.to_s)
+      return
+    end
 
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     users = User.where('updated_at >= ?', last_updated_at).includes(:postcode).order(:updated_at).limit(Settings.tijuana.sync_batch_size)
@@ -68,7 +84,10 @@ module IdentityTijuana
   end
 
   def self.fetch_latest_taggings
-    puts ">>> Tijuana fetch_latest_taggings running ..."
+    ## Do not run method if another worker is currently processing this method
+    if self.worker_currenly_running?(__method__.to_s)
+      return
+    end
 
     last_id = (Sidekiq.redis { |r| r.get 'tijuana:taggings:last_id' } || 0).to_i
     users_last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
