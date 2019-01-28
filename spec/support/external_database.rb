@@ -16,10 +16,6 @@ module ExternalDatabaseHelpers
 
     def setup
       ExternalDatabaseHelpers.create_database
-      ActiveRecord::Base.establish_connection ENV['TIJUANA_DATABASE_URL']
-      ActiveRecord::Base.connection
-    rescue
-      ExternalDatabaseHelpers.create_database
     ensure
       ActiveRecord::Base.establish_connection ENV['IDENTITY_DATABASE_URL']
     end

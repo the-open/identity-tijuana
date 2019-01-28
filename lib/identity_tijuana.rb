@@ -53,13 +53,13 @@ module IdentityTijuana
 
   def self.fetch_updated_users
     ## Do not run method if another worker is currently processing this method
-    if self.worker_currenly_running?(__method__.to_s)
-      return
-    end
+    return if self.worker_currenly_running?(__method__.to_s)
 
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     users = User.where('updated_at >= ?', last_updated_at).includes(:postcode).order(:updated_at).limit(Settings.tijuana.sync_batch_size)
-    users.each(&:import)
+    users.each do |user|
+      user.delay(retry: false, queue: 'low').import
+    end
 
     unless users.empty?
       Sidekiq.redis { |r| r.set 'tijuana:users:last_updated_at', users.last.updated_at }
@@ -85,9 +85,7 @@ module IdentityTijuana
 
   def self.fetch_latest_taggings
     ## Do not run method if another worker is currently processing this method
-    if self.worker_currenly_running?(__method__.to_s)
-      return
-    end
+    return if self.worker_currenly_running?(__method__.to_s)
 
     last_id = (Sidekiq.redis { |r| r.get 'tijuana:taggings:last_id' } || 0).to_i
     users_last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
