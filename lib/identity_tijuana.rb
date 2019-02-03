@@ -1,11 +1,12 @@
 require "identity_tijuana/engine"
 
 module IdentityTijuana
-  SYSTEM_NAME='tijuana'
-  BATCH_AMOUNT=1000
-  SYNCING='tag'
-  CONTACT_TYPE='email'
-  PULL_JOBS=[:fetch_updated_users, :fetch_latest_taggings]
+  SYSTEM_NAME = 'tijuana'
+  PULL_BATCH_AMOUNT = 1000
+  PUSH_BATCH_AMOUNT = 1000
+  SYNCING = 'tag'
+  CONTACT_TYPE = 'email'
+  PULL_JOBS = [[:fetch_updated_users, 10.minutes], [:fetch_latest_taggings, 5.minutes]]
 
   def self.push(sync_id, members, external_system_params)
     begin
@@ -17,7 +18,7 @@ module IdentityTijuana
 
   def self.push_in_batches(sync_id, members, external_system_params)
     begin
-      members.in_batches(of: BATCH_AMOUNT).each_with_index do |batch_members, batch_index|
+      members.in_batches(of: get_push_batch_amount).each_with_index do |batch_members, batch_index|
         tag = JSON.parse(external_system_params)['tag']
         rows = ActiveModel::Serializer::CollectionSerializer.new(
           batch_members,
@@ -51,21 +52,33 @@ module IdentityTijuana
     return false
   end
 
+  def self.get_pull_batch_amount
+    Settings.tijuana.pull_batch_amount || PULL_BATCH_AMOUNT
+  end
+
+  def self.get_push_batch_amount
+    Settings.tijuana.push_batch_amount || PUSH_BATCH_AMOUNT
+  end
+
+  def self.get_pull_jobs
+    defined?(PULL_JOBS) && PULL_JOBS.is_a?(Array) ? PULL_JOBS : []
+  end
+
   def self.fetch_updated_users
     ## Do not run method if another worker is currently processing this method
     return if self.worker_currenly_running?(__method__.to_s)
 
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
-    users = User.where('updated_at >= ?', last_updated_at).includes(:postcode).order(:updated_at).limit(Settings.tijuana.sync_batch_size)
-    users.each do |user|
-      user.delay(retry: false, queue: 'low').import
+    updated_users = User.updated_users(last_updated_at)
+    updated_users.each do |user|
+      User.delay(retry: false, queue: 'low').import(user.id)
     end
 
-    unless users.empty?
-      Sidekiq.redis { |r| r.set 'tijuana:users:last_updated_at', users.last.updated_at }
+    unless updated_users.empty?
+      Sidekiq.redis { |r| r.set 'tijuana:users:last_updated_at', updated_users.last.updated_at }
     end
 
-    users.size
+    updated_users.size
   end
 
   def self.fetch_users_for_dedupe

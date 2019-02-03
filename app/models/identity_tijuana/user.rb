@@ -6,6 +6,18 @@ module IdentityTijuana
     has_many :tags, through: :users
     belongs_to :postcode, optional: true
 
+    scope :updated_users, -> (last_updated_at) {
+      includes(:postcode)
+      .where('users.updated_at >= ?', last_updated_at)
+      .order('users.updated_at')
+      .limit(IdentityTijuana.get_pull_batch_amount)
+    }
+
+    def self.import(user_id)
+      user = User.find(user_id)
+      user.import
+    end
+
     def import
       member_hash = {
         ignore_phone_number_match: true,
