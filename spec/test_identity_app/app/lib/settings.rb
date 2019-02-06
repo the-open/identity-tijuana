@@ -16,15 +16,16 @@ class Settings
         "url" => ENV['TIJUANA_API_URL'],
         "secret" => ENV['TIJUANA_API_SECRET']
       },
-      "opt_out_subscription_id" => 4,
       "push_batch_amount" => nil,
       "pull_batch_amount" => nil,
+      "email_subscription_id" => 1,
+      "calling_subscription_id" => 4
     }
   end
 
   def self.kooragang
     return {
-      "opt_out_subscription_id" => 3
+      "opt_out_subscription_id" => 4
     }
   end
 

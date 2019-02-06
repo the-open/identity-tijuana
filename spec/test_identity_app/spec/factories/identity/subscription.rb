@@ -8,9 +8,5 @@ FactoryBot.define do
       id { Subscription::EMAIL_SUBSCRIPTION }
       name { 'Email' }
     end
-    factory :tijuana_subscription do
-      id { Settings.tijuana.opt_out_subscription_id }
-      name { 'Tijuana Calling' }
-    end
   end
 end

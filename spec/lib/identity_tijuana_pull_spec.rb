@@ -19,7 +19,10 @@ describe IdentityTijuana do
       @email_sub = FactoryBot.create(:email_subscription)
       @calling_sub = FactoryBot.create(:calling_subscription)
       allow(Settings).to receive_message_chain("options.default_phone_country_code") { '61' }
-      allow(Settings).to receive_message_chain("kooragang.opt_out_subscription_id") { @calling_sub.id }
+      allow(Settings).to receive_message_chain("tijuana.email_subscription_id") { @email_sub.id }
+      allow(Settings).to receive_message_chain("tijuana.calling_subscription_id") { @calling_sub.id }
+      allow(Settings).to receive_message_chain("tijuana.pull_batch_amount") { nil }
+      allow(Settings).to receive_message_chain("tijuana.push_batch_amount") { nil }
     end
 
     it 'adds members' do
