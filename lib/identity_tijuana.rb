@@ -71,7 +71,7 @@ module IdentityTijuana
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     updated_users = User.updated_users(last_updated_at)
     updated_users.each do |user|
-      User.delay(retry: false, queue: 'low').import(user.id)
+      User.import(user.id)
     end
 
     unless updated_users.empty?
