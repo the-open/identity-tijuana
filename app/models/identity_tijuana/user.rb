@@ -13,12 +13,13 @@ module IdentityTijuana
       .limit(IdentityTijuana.get_pull_batch_amount)
     }
 
-    def self.import(user_id)
+    def self.import(user_id, sync_id)
       user = User.find(user_id)
-      user.import
+      user.import(sync_id)
     end
 
-    def import
+    def import(sync_id)
+      audit_data = {sync_id: sync_id}
       member_hash = {
         ignore_phone_number_match: true,
         firstname: first_name,
@@ -44,10 +45,16 @@ module IdentityTijuana
         })
       end
 
-      member_hash[:phones].push(phone: home_number) if home_number.present?
-      member_hash[:phones].push(phone: mobile_number) if mobile_number.present?
+      member_hash[:phones].push(phone: PhoneNumber.standardise_phone_number(home_number)) if home_number.present?
+      member_hash[:phones].push(phone: PhoneNumber.standardise_phone_number(mobile_number)) if mobile_number.present?
 
-      Member.delay.upsert_member(member_hash, 'tijuana:fetch_updated_users')
+      Member.delay.upsert_member(
+        member_hash,
+        'tijuana:fetch_updated_users',
+        audit_data,
+        false,
+        false
+      )
     end
   end
 end

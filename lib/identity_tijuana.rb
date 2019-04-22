@@ -35,8 +35,13 @@ module IdentityTijuana
     end
   end
 
-  def self.description(external_system_params, contact_campaign_name)
-    "#{SYSTEM_NAME.titleize} - #{SYNCING.titleize}: ##{JSON.parse(external_system_params)['tag']} (#{CONTACT_TYPE})"
+  def self.description(sync_type, external_system_params, contact_campaign_name)
+    external_system_params_hash = JSON.parse(external_system_params)
+    if sync_type === 'push'
+      "#{SYSTEM_NAME.titleize} - #{SYNCING.titleize}: ##{external_system_params_hash['tag']} (#{CONTACT_TYPE})"
+    else
+      "#{SYSTEM_NAME.titleize}: #{external_system_params_hash['pull_job']}"
+    end
   end
 
   def self.worker_currenly_running?(method_name)
@@ -64,21 +69,32 @@ module IdentityTijuana
     defined?(PULL_JOBS) && PULL_JOBS.is_a?(Array) ? PULL_JOBS : []
   end
 
-  def self.fetch_updated_users
+  def self.pull(sync_id, external_system_params)
+    begin
+      pull_job = JSON.parse(external_system_params)['pull_job'].to_s
+      self.send(pull_job, sync_id) do |records_for_import_count, records_for_import, records_for_import_scope, pull_deferred|
+        yield records_for_import_count, records_for_import, records_for_import_scope, pull_deferred
+      end
+    rescue => e
+      raise e
+    end
+  end
+
+  def self.fetch_updated_users(sync_id)
     ## Do not run method if another worker is currently processing this method
-    return if self.worker_currenly_running?(__method__.to_s)
+    yield 0, {}, {}, true if self.worker_currenly_running?(__method__.to_s)
 
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     updated_users = User.updated_users(last_updated_at)
     updated_users.each do |user|
-      User.import(user.id)
+      User.import(user.id, sync_id)
     end
 
     unless updated_users.empty?
       Sidekiq.redis { |r| r.set 'tijuana:users:last_updated_at', updated_users.last.updated_at }
     end
 
-    updated_users.size
+    yield updated_users.size, updated_users.pluck(:id), { scope: 'tijuana:users:last_updated_at', from: last_updated_at, to: updated_users.empty? ? nil : updated_users.last.updated_at }, false
   end
 
   def self.fetch_users_for_dedupe
@@ -96,14 +112,14 @@ module IdentityTijuana
     end
   end
 
-  def self.fetch_latest_taggings
+  def self.fetch_latest_taggings(sync_id)
     ## Do not run method if another worker is currently processing this method
-    return if self.worker_currenly_running?(__method__.to_s)
+    yield 0, {}, {}, true if self.worker_currenly_running?(__method__.to_s)
 
+    audit_data = {sync_id: sync_id}
     last_id = (Sidekiq.redis { |r| r.get 'tijuana:taggings:last_id' } || 0).to_i
     users_last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     connection = ActiveRecord::Base.connection == List.connection ? ActiveRecord::Base.connection : List.connection
-
 
     sql = %{
       SELECT tu.taggable_id, t.name, tu.id
@@ -178,6 +194,6 @@ module IdentityTijuana
       Sidekiq.redis { |r| r.set 'tijuana:taggings:last_id', results.last[2] }
     end
 
-    results.size
+    yield results.size, results, { scope: 'tijuana:taggings:last_id', from: last_id, to: results.empty? ? nil : results.last[2] }, false
   end
 end

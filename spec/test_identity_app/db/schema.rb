@@ -125,6 +125,7 @@ ActiveRecord::Schema.define(version: 0) do
     t.datetime "happened_at"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.json "data", default: "{}"
     t.index ["contact_campaign_id"], name: "index_contacts_on_contact_campaign_id"
     t.index ["contact_type"], name: "index_contacts_on_contact_type"
     t.index ["contactee_id"], name: "index_contacts_on_contactee_id"
@@ -204,6 +205,7 @@ ActiveRecord::Schema.define(version: 0) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.text "unsubscribe_reason"
+    t.text "subscribe_reason"
     t.boolean "permanent"
     t.integer "unsubscribe_mailing_id"
     t.index ["member_id", "subscription_id"], name: "index_member_subscriptions_on_member_id_and_subscription_id", unique: true
@@ -328,6 +330,8 @@ ActiveRecord::Schema.define(version: 0) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.integer "member_count", default: 0
+    t.string "slug", null: false
+    t.index ["slug"], name: "index_subscriptions_on_slug", unique: true
   end
 
   create_table "syncs", force: :cascade do |t|
@@ -341,6 +345,7 @@ ActiveRecord::Schema.define(version: 0) do
     t.bigint "list_id"
     t.bigint "contact_campaign_id"
     t.bigint "author_id"
+    t.json "reference_data", default: "{}"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["author_id"], name: "index_syncs_on_author_id"
