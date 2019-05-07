@@ -86,6 +86,7 @@ class Initial < ActiveRecord::Migration[4.2]
     t.integer "member_count", default: 0, null: false
     t.boolean "synced_to_redshift", default: false, null: false
     t.bigint "search_id"
+    t.bigint "author_id"
     t.index ["search_id"], name: "index_lists_on_search_id"
     t.index ["synced_to_redshift"], name: "index_lists_on_synced_to_redshift"
   end

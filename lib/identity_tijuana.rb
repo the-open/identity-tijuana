@@ -84,8 +84,10 @@ module IdentityTijuana
     ## Do not run method if another worker is currently processing this method
     yield 0, {}, {}, true if self.worker_currenly_running?(__method__.to_s)
 
+    started_at = DateTime.now
     last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     updated_users = User.updated_users(last_updated_at)
+    updated_users_all = User.updated_users_all(last_updated_at)
     updated_users.each do |user|
       User.import(user.id, sync_id)
     end
@@ -94,7 +96,22 @@ module IdentityTijuana
       Sidekiq.redis { |r| r.set 'tijuana:users:last_updated_at', updated_users.last.updated_at }
     end
 
-    yield updated_users.size, updated_users.pluck(:id), { scope: 'tijuana:users:last_updated_at', from: last_updated_at, to: updated_users.empty? ? nil : updated_users.last.updated_at }, false
+    execution_time_seconds = ((DateTime.now - started_at) * 24 * 60 * 60).to_i
+    yield(
+      updated_users.size,
+      updated_users.pluck(:id),
+      {
+        scope: 'tijuana:users:last_updated_at',
+        scope_limit: IdentityTijuana.get_pull_batch_amount,
+        from: last_updated_at,
+        to: updated_users.empty? ? nil : updated_users.last.updated_at,
+        started_at: started_at,
+        completed_at: DateTime.now,
+        execution_time_seconds: execution_time_seconds,
+        remaining_behind: updated_users_all.count
+      },
+      false
+    )
   end
 
   def self.fetch_users_for_dedupe
@@ -116,13 +133,26 @@ module IdentityTijuana
     ## Do not run method if another worker is currently processing this method
     yield 0, {}, {}, true if self.worker_currenly_running?(__method__.to_s)
 
+    latest_tagging_scope_limit = 50000
+    started_at = DateTime.now
     audit_data = {sync_id: sync_id}
     last_id = (Sidekiq.redis { |r| r.get 'tijuana:taggings:last_id' } || 0).to_i
     users_last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     connection = ActiveRecord::Base.connection == List.connection ? ActiveRecord::Base.connection : List.connection
 
-    sql = %{
-      SELECT tu.taggable_id, t.name, tu.id
+    tags_remaining_behind_sql = %{
+      SELECT distinct(t.name)
+      FROM taggings tu #{'FORCE INDEX (PRIMARY)' unless Settings.tijuana.database_url.start_with? 'postgres'}
+      JOIN tags t
+        ON t.id = tu.tag_id
+      WHERE tu.id > #{last_id}
+        AND taggable_type = 'User'
+        AND (tu.created_at < #{connection.quote(users_last_updated_at)} OR tu.created_at is null)
+        AND t.name like '%_syncid%'
+    }
+
+    scoped_latest_taggings_sql = %{
+      SELECT tu.taggable_id, t.name, tu.id, t.author_id
       FROM taggings tu #{'FORCE INDEX (PRIMARY)' unless Settings.tijuana.database_url.start_with? 'postgres'}
       JOIN tags t
         ON t.id = tu.tag_id
@@ -131,31 +161,32 @@ module IdentityTijuana
         AND (tu.created_at < #{connection.quote(users_last_updated_at)} OR tu.created_at is null)
         AND t.name like '%_syncid%'
       ORDER BY tu.id
-      LIMIT 50000
+      LIMIT #{latest_tagging_scope_limit}
     }
 
     puts 'Getting latest taggings'
-    results = IdentityTijuana::Tagging.connection.execute(sql).to_a
+    tags_remaining_results = IdentityTijuana::Tagging.connection.execute(tags_remaining_behind_sql).to_a
+    results = IdentityTijuana::Tagging.connection.execute(scoped_latest_taggings_sql).to_a
 
     unless results.empty?
       puts 'Creating value strings'
       results = results.map { |row| row.try(:values) || row } # deal with results returned in array or hash form
       value_strings = results.map do |row|
-        "(#{connection.quote(row[0])}, #{connection.quote(row[1])})"
+        "(#{connection.quote(row[0])}, #{connection.quote(row[1])}, #{connection.quote(row[2])})"
       end
 
       puts 'Inserting value strings and merging'
       table_name = "tmp_#{SecureRandom.hex(16)}"
       connection.execute(%{
-        CREATE TABLE #{table_name} (tijuana_id TEXT, tag TEXT);
+        CREATE TABLE #{table_name} (tijuana_id TEXT, tag TEXT, tijuana_author_id INTEGER);
         INSERT INTO #{table_name} VALUES #{value_strings.join(',')};
         CREATE INDEX #{table_name}_tijuana_id ON #{table_name} (tijuana_id);
         CREATE INDEX #{table_name}_tag ON #{table_name} (tag);
       })
 
       connection.execute(%{
-        INSERT INTO lists (name, created_at, updated_at)
-        SELECT DISTINCT 'TIJUANA TAG: ' || et.tag, current_timestamp, current_timestamp
+        INSERT INTO lists (name, author_id, created_at, updated_at)
+        SELECT DISTINCT 'TIJUANA TAG: ' || et.tag, author_id, current_timestamp, current_timestamp
         FROM #{table_name} et
         LEFT JOIN lists l
           ON l.name = 'TIJUANA TAG: ' || et.tag
@@ -184,6 +215,24 @@ module IdentityTijuana
       connection.execute("DROP TABLE #{table_name};")
 
       list_ids.each do |list_id|
+        list = List.find(list_id)
+        user_results = User.connection.execute("SELECT email, first_name, last_name FROM users WHERE id = #{ActiveRecord::Base.connection.quote(list.author_id)}").to_a
+        if user_results && user_results[0]
+          ## Create Members for both the user and campaign contact
+          author = Member.upsert_member(
+            {
+              emails: [{ email: user_results[0][0] }],
+              firstname: user_results[0][1],
+              lastname: user_results[0][2],
+              external_ids: { tijuana: list.author_id },
+            },
+            "#{SYSTEM_NAME}:#{__method__.to_s}",
+            audit_data,
+            false,
+            false
+          )
+          List.find(list_id).update!(author_id: author.id)
+        end
         CountListMembersWorker.perform_async(list_id)
       end
 
@@ -194,6 +243,21 @@ module IdentityTijuana
       Sidekiq.redis { |r| r.set 'tijuana:taggings:last_id', results.last[2] }
     end
 
-    yield results.size, results, { scope: 'tijuana:taggings:last_id', from: last_id, to: results.empty? ? nil : results.last[2] }, false
+    execution_time_seconds = ((DateTime.now - started_at) * 24 * 60 * 60).to_i
+    yield(
+      results.size,
+      results,
+      {
+        scope: 'tijuana:taggings:last_id',
+        scope_limit: latest_tagging_scope_limit,
+        from: last_id,
+        to: results.empty? ? nil : results.last[2],
+        started_at: started_at,
+        completed_at: DateTime.now,
+        execution_time_seconds: execution_time_seconds,
+        remaining_behind: tags_remaining_results.count
+      },
+      false
+    )
   end
 end

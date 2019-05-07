@@ -13,6 +13,11 @@ module IdentityTijuana
       .limit(IdentityTijuana.get_pull_batch_amount)
     }
 
+    scope :updated_users_all, -> (last_updated_at) {
+      includes(:postcode)
+      .where('users.updated_at >= ?', last_updated_at)
+    }
+
     def self.import(user_id, sync_id)
       user = User.find(user_id)
       user.import(sync_id)

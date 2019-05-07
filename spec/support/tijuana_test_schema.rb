@@ -3,6 +3,7 @@ class CreateTijuanaTestDb < ActiveRecord::Migration[5.0]
     create_table 'tags', force: :cascade do |t|
       t.string  'name',           limit: 255
       t.integer 'taggings_count', limit: 4, default: 0
+      t.integer 'author_id', limit: 4
     end
 
     add_index 'tags', ['name'], name: 'index_tags_on_name', unique: true, using: :btree
