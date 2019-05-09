@@ -152,7 +152,7 @@ module IdentityTijuana
     }
 
     scoped_latest_taggings_sql = %{
-      SELECT tu.taggable_id, t.name, tu.id, t.author_id
+      SELECT tu.taggable_id, t.name, tu.id, t.author_id, tu.created_at
       FROM taggings tu #{'FORCE INDEX (PRIMARY)' unless Settings.tijuana.database_url.start_with? 'postgres'}
       JOIN tags t
         ON t.id = tu.tag_id
@@ -250,8 +250,8 @@ module IdentityTijuana
       {
         scope: 'tijuana:taggings:last_id',
         scope_limit: latest_tagging_scope_limit,
-        from: last_id,
-        to: results.empty? ? nil : results.last[2],
+        from: results.empty? ? nil : results.first[4],
+        to: results.empty? ? nil : results.last[4],
         started_at: started_at,
         completed_at: DateTime.now,
         execution_time_seconds: execution_time_seconds,
