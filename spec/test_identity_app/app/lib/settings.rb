@@ -19,7 +19,8 @@ class Settings
       "push_batch_amount" => nil,
       "pull_batch_amount" => nil,
       "email_subscription_id" => 1,
-      "calling_subscription_id" => 4
+      "calling_subscription_id" => 4,
+      "sms_subscription_id" => 3
     }
   end
 

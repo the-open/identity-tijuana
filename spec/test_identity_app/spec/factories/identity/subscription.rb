@@ -10,5 +10,10 @@ FactoryBot.define do
       name { 'Email' }
       slug { 'default:email' }
     end
+    factory :sms_subscription do
+      id { Subscription::SMS_SUBSCRIPTION }
+      name { 'SMS' }
+      slug { 'default:sms' }
+    end
   end
 end

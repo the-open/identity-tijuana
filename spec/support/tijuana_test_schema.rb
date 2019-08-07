@@ -64,6 +64,7 @@ class CreateTijuanaTestDb < ActiveRecord::Migration[5.0]
       t.string   'facebook_id',                  limit: 50
       t.string   'otp_secret_key',               limit: 255
       t.integer  'second_factor_attempts_count', limit: 4, default: 0
+      t.boolean  'do_not_sms', default: false, null: false
     end
 
     add_index 'users', ['created_at'], name: 'created_at_idx', using: :btree
@@ -78,6 +79,7 @@ class CreateTijuanaTestDb < ActiveRecord::Migration[5.0]
     add_index 'users', ['random'], name: 'users_random_idx', using: :btree
     add_index 'users', ['reset_password_token'], name: 'users_reset_password_token_idx', using: :btree
     add_index 'users', ['do_not_call'], name: 'index_users_on_do_not_call', using: :btree
+    add_index 'users', ['do_not_sms'], name: 'index_users_on_do_not_sms', using: :btree
 
     create_table 'postcodes', force: :cascade do |t|
       t.string   'number',     limit: 255

@@ -34,9 +34,11 @@ describe IdentityTijuana do
     before do
       @email_sub = FactoryBot.create(:email_subscription)
       @calling_sub = FactoryBot.create(:calling_subscription)
+      @sms_sub = FactoryBot.create(:sms_subscription)
       allow(Settings).to receive_message_chain("options.default_phone_country_code") { '61' }
       allow(Settings).to receive_message_chain("tijuana.email_subscription_id") { @email_sub.id }
       allow(Settings).to receive_message_chain("tijuana.calling_subscription_id") { @calling_sub.id }
+      allow(Settings).to receive_message_chain("tijuana.sms_subscription_id") { @sms_sub.id }
       allow(Settings).to receive_message_chain("tijuana.pull_batch_amount") { nil }
       allow(Settings).to receive_message_chain("tijuana.push_batch_amount") { nil }
     end
@@ -60,8 +62,8 @@ describe IdentityTijuana do
       expect(Member.count).to eq(1)
     end
 
-    it 'subscribes people to email and calling' do
-      user = FactoryBot.create(:tijuana_user, is_member: true, do_not_call: false)
+    it 'subscribes people to email and calling and sms' do
+      user = FactoryBot.create(:tijuana_user, is_member: true, do_not_call: false, do_not_sms: false)
       member_with_email_and_calling = FactoryBot.create(:member)
       member_with_email_and_calling.update_attributes(email: user.email)
 
@@ -70,10 +72,11 @@ describe IdentityTijuana do
       member_with_email_and_calling.reload
       expect(member_with_email_and_calling.is_subscribed_to?(@email_sub)).to eq(true)
       expect(member_with_email_and_calling.is_subscribed_to?(@calling_sub)).to eq(true)
+      expect(member_with_email_and_calling.is_subscribed_to?(@sms_sub)).to eq(true)
     end
 
     it 'unsubscribes people' do
-      user = FactoryBot.create(:tijuana_user, is_member: false, do_not_call: true)
+      user = FactoryBot.create(:tijuana_user, is_member: false, do_not_call: true, do_not_sms: true)
       member_with_email_and_calling = FactoryBot.create(:member)
       member_with_email_and_calling.update_attributes(email: user.email)
 
@@ -82,6 +85,7 @@ describe IdentityTijuana do
       member_with_email_and_calling.reload
       expect(member_with_email_and_calling.is_subscribed_to?(@email_sub)).to eq(false)
       expect(member_with_email_and_calling.is_subscribed_to?(@calling_sub)).to eq(false)
+      expect(member_with_email_and_calling.is_subscribed_to?(@sms_sub)).to eq(false)
     end
 
     it 'upserts members based on phone' do

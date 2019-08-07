@@ -50,6 +50,13 @@ module IdentityTijuana
         })
       end
 
+      if Settings.tijuana.sms_subscription_id
+        member_hash[:subscriptions].push({
+          id: Settings.tijuana.sms_subscription_id,
+          action: do_not_sms ? 'unsubscribe' : 'subscribe'
+        })
+      end
+
       member_hash[:phones].push(phone: PhoneNumber.standardise_phone_number(home_number)) if home_number.present?
       member_hash[:phones].push(phone: PhoneNumber.standardise_phone_number(mobile_number)) if mobile_number.present?
 
