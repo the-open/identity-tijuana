@@ -140,7 +140,6 @@ module IdentityTijuana
 
     latest_tagging_scope_limit = 50000
     started_at = DateTime.now
-    audit_data = {sync_id: sync_id}
     last_id = (Sidekiq.redis { |r| r.get 'tijuana:taggings:last_id' } || 0).to_i
     users_last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:users:last_updated_at' } || '1970-01-01 00:00:00')
     connection = ActiveRecord::Base.connection == List.connection ? ActiveRecord::Base.connection : List.connection
@@ -224,17 +223,15 @@ module IdentityTijuana
         user_results = User.connection.execute("SELECT email, first_name, last_name FROM users WHERE id = #{ActiveRecord::Base.connection.quote(list.author_id)}").to_a
         if user_results && user_results[0]
           ## Create Members for both the user and campaign contact
-          author = Member.upsert_member(
+          author = UpsertMember.call(
             {
               emails: [{ email: user_results[0][0] }],
               firstname: user_results[0][1],
               lastname: user_results[0][2],
               external_ids: { tijuana: list.author_id },
             },
-            "#{SYSTEM_NAME}:#{__method__.to_s}",
-            audit_data,
-            false,
-            false
+            entry_point: "#{SYSTEM_NAME}:#{__method__.to_s}",
+            ignore_name_change: false
           )
           List.find(list_id).update!(author_id: author.id)
         end
