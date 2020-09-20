@@ -9,8 +9,9 @@ module IdentityTijuana
   PULL_JOBS = [[:fetch_updated_users, 10.minutes], [:fetch_latest_taggings, 5.minutes]]
   MEMBER_RECORD_DATA_TYPE='object'
 
-  def self.push(sync_id, members, external_system_params)
+  def self.push(sync_id, member_ids, external_system_params)
     begin
+      members = Member.find(member_ids)
       yield members.with_email, nil, external_system_params
     rescue => e
       raise e
