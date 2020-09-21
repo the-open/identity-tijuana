@@ -24,7 +24,6 @@ module IdentityTijuana
     end
 
     def import(sync_id)
-      audit_data = {sync_id: sync_id}
       member_hash = {
         ignore_phone_number_match: true,
         firstname: first_name,
