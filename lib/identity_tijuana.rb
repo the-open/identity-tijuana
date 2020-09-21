@@ -11,7 +11,7 @@ module IdentityTijuana
 
   def self.push(sync_id, member_ids, external_system_params)
     begin
-      members = Member.find(member_ids).with_email
+      members = Member.where(id: member_ids).with_email
       yield members, nil
     rescue => e
       raise e
