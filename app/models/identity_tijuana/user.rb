@@ -60,6 +60,7 @@ module IdentityTijuana
       member_hash[:phones].push(phone: PhoneNumber.standardise_phone_number(mobile_number)) if mobile_number.present?
 
       UpsertMember.call(
+        ignore_phone_number_match: true,
         member_hash,
         entry_point: 'tijuana:fetch_updated_users',
         ignore_name_change: false
