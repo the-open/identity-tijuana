@@ -1,4 +1,7 @@
-module IdentityTijuana
+require 'identity_tijuana/application_record'
+require 'identity_tijuana/readwrite'
+
+module ExternalSystems::IdentityTijuana
   class User < ApplicationRecord
     include ReadWrite
     self.table_name = 'users'
@@ -8,22 +11,22 @@ module IdentityTijuana
 
     scope :updated_users, -> (last_updated_at) {
       includes(:postcode)
-      .where('users.updated_at >= ?', last_updated_at)
+      .where('users.updated_at > ?', last_updated_at)
       .order('users.updated_at')
-      .limit(IdentityTijuana.get_pull_batch_amount)
+        .limit(Settings.tijuana.pull_batch_amount)
     }
 
     scope :updated_users_all, -> (last_updated_at) {
       includes(:postcode)
-      .where('users.updated_at >= ?', last_updated_at)
+      .where('users.updated_at > ?', last_updated_at)
     }
 
-    def self.import(user_id, sync_id)
+    def self.import(user_id)
       user = User.find(user_id)
-      user.import(sync_id)
+      user.import(user_id)
     end
 
-    def import(sync_id)
+    def import(user_id)
       member_hash = {
         ignore_phone_number_match: true,
         firstname: first_name,
@@ -35,27 +38,7 @@ module IdentityTijuana
         subscriptions: []
       }
 
-      if Settings.tijuana.email_subscription_id
-        member_hash[:subscriptions].push({
-          id: Settings.tijuana.email_subscription_id,
-          action: !is_member ? 'unsubscribe' : 'subscribe'
-        })
-      end
-
-      if Settings.tijuana.calling_subscription_id
-        member_hash[:subscriptions].push({
-          id: Settings.tijuana.calling_subscription_id,
-          action: do_not_call ? 'unsubscribe' : 'subscribe'
-        })
-      end
-
-      if Settings.tijuana.sms_subscription_id
-        member_hash[:subscriptions].push({
-          id: Settings.tijuana.sms_subscription_id,
-          action: do_not_sms ? 'unsubscribe' : 'subscribe'
-        })
-      end
-
+     
       standard_home = PhoneNumber.standardise_phone_number(home_number) if home_number.present?
       standard_mobile = PhoneNumber.standardise_phone_number(mobile_number) if mobile_number.present?
       member_hash[:phones].push(phone: standard_home) if home_number.present?
@@ -63,11 +46,20 @@ module IdentityTijuana
 
       UpsertMember.call(
         member_hash,
-        entry_point: 'tijuana:fetch_updated_users',
+        entry_point: 'tijuana:pull_updated_users',
         ignore_name_change: false
       )
     end
+
+    def self.export(member_id)
+      member = Member.find(member_id)
+
+      if member.entry_point.present? and not member.entry_point.starts_with? 'tijuana'
+        user = User.create(first_name: member.first_name,
+                           last_name: member.last_name,
+                           email: member.email)
+        user.save!
+      end
+    end
   end
-end
-class User < IdentityTijuana::User
 end

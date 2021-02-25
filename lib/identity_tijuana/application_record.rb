@@ -1,4 +1,4 @@
-module IdentityTijuana
+module ExternalSystems::IdentityTijuana
   class ApplicationRecord < ActiveRecord::Base
     self.abstract_class = true
   end

@@ -1,12 +1,12 @@
 $:.push File.expand_path("../lib", __FILE__)
 
 # Maintain your gem's version:
-require "identity_tijuana/version"
+require "external_systems/identity_tijuana/version"
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |s|
   s.name        = "identity_tijuana"
-  s.version     = IdentityTijuana::VERSION
+  s.version     = ExternalSystems::IdentityTijuana::VERSION
   s.authors     = ["GetUp!"]
   s.email       = ["tech@getup.org.au"]
   s.homepage    = "https://github.com/GetUp/identity_tijuana"
