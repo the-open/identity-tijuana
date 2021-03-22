@@ -35,8 +35,6 @@ module ExternalSystems::IdentityTijuana
       puts "Push members to Tijuana"
       last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:push-members:last_updated_at' } || '1970-01-01 00:00:00')
 
-      Sidekiq.redis { |r| r.set 'tijuana:push-members:member_id', 0 }
-
       updated_members = Member
         .where('members.updated_at > ?', last_updated_at)
         .order('members.updated_at')

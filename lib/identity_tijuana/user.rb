@@ -55,10 +55,21 @@ module ExternalSystems::IdentityTijuana
       member = Member.find(member_id)
 
       if member.entry_point.present? and not member.entry_point.starts_with? 'tijuana'
-        user = User.create(first_name: member.first_name,
-                           last_name: member.last_name,
-                           email: member.email)
-        user.save!
+        user = User.find_by_email(member.email)
+
+        user_hash = {
+          first_name: member.first_name,
+          last_name: member.last_name,
+          mobile_number: member.phone_numbers.mobile.first&.phone,
+          home_number: member.phone_numbers.landline.first&.phone,
+          email: member.email
+        }
+
+        if user
+          user.update!(user_hash)
+        else
+          User.create!(user_hash)
+        end
       end
     end
   end
