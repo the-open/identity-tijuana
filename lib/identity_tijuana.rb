@@ -1,4 +1,5 @@
 require 'identity_tijuana/user'
+require 'identity_tijuana/postcode'
 
 module ExternalSystems::IdentityTijuana
   SYSTEM_NAME = 'tijuana'
@@ -17,6 +18,7 @@ module ExternalSystems::IdentityTijuana
     end
 
     def pull_updated_users
+      puts "Pull users from Tijuana"
       Rails.logger.info "Pull users from Tijuana"
       last_updated_at = Time.parse(Sidekiq.redis { |r| r.get 'tijuana:pull-users:last_updated_at' } || '1970-01-01 00:00:00')
 
