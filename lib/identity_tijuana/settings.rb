@@ -1,23 +1,54 @@
+# This patch allows accessing the settings hash with dot notation
+class Hash
+  def method_missing(method, *opts)
+    m = method.to_s
+    return self[m] if key?(m)
+    super
+  end
+end
+
 module ExternalSystems::IdentityTijuana
   class Settings
-    class Tijuana
-      def self.pull_batch_amount
-        ENV['PULL_BATCH_AMOUNT']
-      end
-
-      def self.push_batch_amount
-        ENV['PUSHL_BATCH_AMOUNT']
-      end
-
-      def self.database_url
-        ENV['TIJUANA_DATABASE_URL']
-      end
+    def self.tijuana
+      return {
+        "database_url" => ENV['TIJUANA_DATABASE_URL'],
+        "read_only_database_url" => ENV['TIJUANA_DATABASE_URL'],
+        "api" => {
+          "url" => ENV['TIJUANA_API_URL'],
+          "secret" => ENV['TIJUANA_API_SECRET']
+        },
+        "push_batch_amount" => nil,
+        "pull_batch_amount" => 2000
+      }
     end
 
-    class << self
-      def tijuana
-        Tijuana
-      end
+    def self.kooragang
+      return {
+        "opt_out_subscription_id" => 4
+      }
+    end
+
+    def self.options
+      return {
+        "use_redshift" => true,
+        "default_phone_country_code" => '61',
+        "ignore_name_change_for_donation" => true,
+        "allow_subscribe_via_upsert_member" => true,
+        "allow_upsert_create_subscriptions" => false
+      }
+    end
+
+    def self.databases
+      return {
+        "zip_schema" => false,
+        "zip_primary_key" => false
+      }
+    end
+
+    def self.geography
+      return {
+        "postcode_dash" => false
+      }
     end
   end
 end

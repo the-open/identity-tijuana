@@ -38,17 +38,31 @@ module ExternalSystems::IdentityTijuana
         subscriptions: []
       }
 
+      member_hash[:subscriptions].push({
+        id: Subscription::EMAIL_SUBSCRIPTION.id,
+        action: !is_member ? 'unsubscribe' : 'subscribe'
+      })
+
+      member_hash[:subscriptions].push({
+        id: Subscription::CALLING_SUBSCRIPTION.id,
+        action: do_not_call ? 'unsubscribe' : 'subscribe'
+      })
+
+      member_hash[:subscriptions].push({
+        id: Subscription::SMS_SUBSCRIPTION.id,
+        action: do_not_sms ? 'unsubscribe' : 'subscribe'
+      })
      
       standard_home = PhoneNumber.standardise_phone_number(home_number) if home_number.present?
       standard_mobile = PhoneNumber.standardise_phone_number(mobile_number) if mobile_number.present?
       member_hash[:phones].push(phone: standard_home) if home_number.present?
       member_hash[:phones].push(phone: standard_mobile) if mobile_number.present? and standard_mobile != standard_home
 
-      UpsertMember.call(
+      UpsertMember.new(
         member_hash,
         entry_point: 'tijuana:pull_updated_users',
         ignore_name_change: false
-      )
+      ).call()
     end
 
     def self.export(member_id)
