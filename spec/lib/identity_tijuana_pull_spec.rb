@@ -183,20 +183,4 @@ describe IdentityTijuana do
       expect(Member.count).to eq(4)
     end
   end
-
-  context '#get_pull_batch_amount' do
-    context 'with no settings parameters set' do
-      it 'should return default class constant' do
-        expect(IdentityTijuana.get_pull_batch_amount).to eq(1000)
-      end
-    end
-    context 'with settings parameters set' do
-      before(:each) do
-        Settings.stub_chain(:tijuana, :pull_batch_amount) { 100 }
-      end
-      it 'should return set variable' do
-        expect(IdentityTijuana.get_pull_batch_amount).to eq(100)
-      end
-    end
-  end
 end

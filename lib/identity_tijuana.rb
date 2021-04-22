@@ -2,8 +2,6 @@ require "identity_tijuana/engine"
 
 module IdentityTijuana
   SYSTEM_NAME = 'tijuana'
-  PULL_BATCH_AMOUNT = 1000
-  PUSH_BATCH_AMOUNT = 1000
   SYNCING = 'tag'
   CONTACT_TYPE = 'email'
   PULL_JOBS = [[:fetch_updated_users, 10.minutes], [:fetch_latest_taggings, 5.minutes]]
@@ -20,7 +18,7 @@ module IdentityTijuana
 
   def self.push_in_batches(sync_id, members, external_system_params)
     begin
-      members.in_batches(of: get_push_batch_amount).each_with_index do |batch_members, batch_index|
+      members.in_batches(of: Settings.tijuana.push_batch_amount).each_with_index do |batch_members, batch_index|
         tag = JSON.parse(external_system_params)['tag']
         rows = ActiveModel::Serializer::CollectionSerializer.new(
           batch_members,
@@ -57,14 +55,6 @@ module IdentityTijuana
     end
     puts ">>> #{SYSTEM_NAME.titleize} #{method_name} running ..."
     return false
-  end
-
-  def self.get_pull_batch_amount
-    Settings.tijuana.pull_batch_amount || PULL_BATCH_AMOUNT
-  end
-
-  def self.get_push_batch_amount
-    Settings.tijuana.push_batch_amount || PUSH_BATCH_AMOUNT
   end
 
   def self.get_pull_jobs
@@ -108,7 +98,7 @@ module IdentityTijuana
       updated_users.pluck(:id),
       {
         scope: 'tijuana:users:last_updated_at',
-        scope_limit: IdentityTijuana.get_pull_batch_amount,
+        scope_limit: Settings.tijuana.pull_batch_amount,
         from: last_updated_at,
         to: updated_users.empty? ? nil : updated_users.last.updated_at,
         started_at: started_at,

@@ -10,7 +10,7 @@ module IdentityTijuana
       includes(:postcode)
       .where('users.updated_at >= ?', last_updated_at)
       .order('users.updated_at')
-      .limit(IdentityTijuana.get_pull_batch_amount)
+      .limit(Settings.tijuana.pull_batch_amount)
     }
 
     scope :updated_users_all, -> (last_updated_at) {
