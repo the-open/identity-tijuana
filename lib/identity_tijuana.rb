@@ -28,7 +28,7 @@ module IdentityTijuana
         tijuana.tag_emails(tag, rows)
 
         #TODO return write results here
-        yield batch_index, 0
+        yield batch_index, 0, external_system_params
       end
     rescue => e
       raise e
